@@ -1,17 +1,40 @@
 import 'dart:convert';
 import '../models/product.dart';
 import 'api_service.dart';
-import 'package:http/http.dart' as http;
 
 class ProductService {
-  static Future<List<Product>> fetchProducts({int page = 1, int limit = 10}) async {
+  static Future<List<Product>> fetchProducts({
+    int page = 1,
+    int limit = 10,
+    String? name,
+    String? category,
+    String? supplier,
+    double? minPrice,
+    double? maxPrice,
+    String sortBy = 'createdAt',
+    String sortOrder = 'desc',
+  }) async {
     try {
+      // Crear un mapa con los parámetros de la consulta
+      Map<String, String> queryParams = {
+        'page': page.toString(),
+        'limit': limit.toString(),
+        'sortBy': sortBy,
+        'sortOrder': sortOrder,
+      };
+
+      // Añadir los filtros si se proporcionan
+      if (name != null && name.isNotEmpty) queryParams['name'] = name;
+      if (category != null && category.isNotEmpty)
+        queryParams['category'] = category;
+      if (supplier != null && supplier.isNotEmpty)
+        queryParams['supplier'] = supplier;
+      if (minPrice != null) queryParams['minPrice'] = minPrice.toString();
+      if (maxPrice != null) queryParams['maxPrice'] = maxPrice.toString();
+
       final response = await ApiService.get(
         '/products',
-        queryParams: {
-          'page': page.toString(),
-          'limit': limit.toString(),
-        },
+        queryParams: queryParams,
       );
 
       if (response.statusCode == 200) {

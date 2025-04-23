@@ -12,7 +12,12 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  late Future<List<Product>> _futureProducts;
+  int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
+  int _sortColumnIndex = 0;
+  bool _sortAscending = true;
+
+  List<Product> _products = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -20,13 +25,29 @@ class _ProductsScreenState extends State<ProductsScreen> {
     _loadProducts();
   }
 
-  void _loadProducts() {
+  Future<void> _loadProducts() async {
+    setState(() => _isLoading = true);
+    final fetched = await ProductService.fetchProducts(); // Puedes incluir filtros aquí
     setState(() {
-      _futureProducts = ProductService.fetchProducts();
+      _products = fetched;
+      _isLoading = false;
     });
   }
 
-  void _navigateToAddProduct(BuildContext context) {
+  void _sort<T>(Comparable<T> Function(Product p) getField, int columnIndex, bool ascending) {
+    _products.sort((a, b) {
+      final aValue = getField(a);
+      final bValue = getField(b);
+      return ascending ? Comparable.compare(aValue, bValue) : Comparable.compare(bValue, aValue);
+    });
+
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+    });
+  }
+
+  void _navigateToAddProduct() {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -36,9 +57,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           child: AddProductModal(),
         ),
       ),
-    ).then((value) {
-      _loadProducts();
-    });
+    ).then((_) => _loadProducts());
   }
 
   void _navigateToCreateSale() {
@@ -47,9 +66,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Future<void> _deleteProduct(String productId) async {
     try {
-      await ProductService.deleteProduct(
-          productId); // Suponiendo que tienes un servicio que maneja la eliminación
-      print('Producto eliminado');
+      await ProductService.deleteProduct(productId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Producto eliminado')),
+      );
+      _loadProducts();
     } catch (e) {
       print('Error al eliminar el producto: $e');
     }
@@ -57,6 +78,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final productDataSource = ProductDataSource(
+      context: context,
+      products: _products,
+      onDelete: _deleteProduct,
+      onEdit: _loadProducts,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Productos'),
@@ -69,130 +97,169 @@ class _ProductsScreenState extends State<ProductsScreen> {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Agregar producto',
-            onPressed: () => _navigateToAddProduct(context),
+            onPressed: _navigateToAddProduct,
           ),
         ],
       ),
-      body: FutureBuilder<List<Product>>(
-        future: _futureProducts,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final products = snapshot.data ?? [];
-
-          if (products.isEmpty) {
-            return const Center(child: Text('No hay productos disponibles.'));
-          }
-
-          return ListView.builder(
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                child: ListTile(
-                  leading: const Icon(Icons.inventory),
-                  title: Text(product.name),
-                  subtitle: Text(
-                      'Stock: ${product.stock} - Precio: \$${product.price.toStringAsFixed(2)}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) {
-                              return Dialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: EditProductModal(product: product),
-                                ),
-                              );
-                            },
-                          ).then((value) {
-                            _loadProducts();
-                          });
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Confirmación'),
-                                content: Text(
-                                    '¿Estás seguro de eliminar el producto: ${product.name}?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context)
-                                          .pop();
-                                    },
-                                    child: const Text('Cancelar'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await _deleteProduct(product.id);
-                                      Navigator.of(context)
-                                          .pop(); 
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'Producto ${product.name} eliminado')),
-                                      );
-                                      _loadProducts();
-                                    },
-                                    child: const Text('Eliminar'),
-                                    style: TextButton.styleFrom(
-                                        foregroundColor: Colors.red),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: Text(product.name),
-                          content: Text(
-                              'Descripción: ${product.description}\nPrecio: \$${product.price.toStringAsFixed(2)}\nStock: ${product.stock}'),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
-                        );
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            children: [
+              Theme(
+                data: Theme.of(context).copyWith(
+                  cardColor: Colors.white,
+                  dividerColor: Colors.transparent,
+                  dataTableTheme: DataTableThemeData(
+                    headingRowColor: MaterialStateProperty.all(Colors.blue),
+                    headingTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                      (Set<MaterialState> states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return Theme.of(context).colorScheme.primary.withOpacity(0.08);
+                        }
+                         return Colors.white;
                       },
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              );
-            },
-          );
-        },
+                child: PaginatedDataTable(
+                  header: const Text('Lista de productos'),
+                  columns: [
+                    DataColumn(
+                      label: const Text('Nombre'),
+                      onSort: (i, asc) => _sort((p) => p.name, i, asc),
+                    ),
+                    const DataColumn(label: Text('Descripción')),
+                    DataColumn(
+                      label: const Text('Precio'),
+                      numeric: true,
+                      onSort: (i, asc) => _sort((p) => p.price, i, asc),
+                    ),
+                    DataColumn(
+                      label: const Text('Stock'),
+                      numeric: true,
+                      onSort: (i, asc) => _sort((p) => p.stock, i, asc),
+                    ),
+                    const DataColumn(label: Text('Categoría')),
+                    const DataColumn(label: Text('Opciones')),
+                  ],
+                  source: productDataSource,
+                  rowsPerPage: _rowsPerPage,
+                  onRowsPerPageChanged: (value) {
+                    setState(() {
+                      _rowsPerPage = value ?? _rowsPerPage;
+                    });
+                  },
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
+                  showCheckboxColumn: false,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+class ProductDataSource extends DataTableSource {
+  final BuildContext context;
+  final List<Product> products;
+  final Future<void> Function(String id) onDelete;
+  final VoidCallback onEdit;
+
+  ProductDataSource({
+    required this.context,
+    required this.products,
+    required this.onDelete,
+    required this.onEdit,
+  });
+
+    @override
+  DataRow getRow(int index) {
+    if (index >= products.length) return const DataRow(cells: []);
+    final product = products[index];
+    final isEven = index % 2 == 0;
+
+    return DataRow(
+      color: MaterialStateProperty.resolveWith<Color?>(
+          (Set<MaterialState> states) {
+        return isEven
+          ? const Color(0xFFFFFFFF) // blanco
+          : const Color(0xFFF0F0F0); // plomo claro
+      }),
+      cells: [
+        DataCell(Text(product.name)),
+        DataCell(Text(product.description ?? 'N/A')),
+        DataCell(Text('\$${product.price.toStringAsFixed(2)}')),
+        DataCell(Text(product.stock.toString())),
+        DataCell(Text(product.category ?? 'N/A')),
+        DataCell(
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Dialog(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: EditProductModal(product: product),
+                      ),
+                    ),
+                  ).then((_) => onEdit());
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Confirmar eliminación'),
+                      content: Text('¿Eliminar el producto "${product.name}"?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            await onDelete(product.id);
+                          },
+                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: const Text('Eliminar'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => products.length;
+
+  @override
+  int get selectedRowCount => 0;
 }
