@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:izi_frontend/screens/sales_screen.dart';
 import 'package:izi_frontend/widgets/add_product_modal.dart';
 import 'package:izi_frontend/widgets/edit_product_modal.dart';
 import '../models/product.dart';
@@ -100,8 +101,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ).then((_) => _loadProducts());
   }
 
-  void _navigateToCreateSale() {
-    print("Ir a crear venta");
+  void _navigateToCreateSale(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => SalesScreen()),
+    );
   }
 
   Future<void> _deleteProduct(String productId) async {
@@ -170,7 +174,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Expanded(
                           flex: 1,
                           child: ElevatedButton.icon(
-                            onPressed: _navigateToCreateSale,
+                            onPressed: () => _navigateToCreateSale(context),
                             icon: const Icon(Icons.add_shopping_cart),
                             label: const Text('Venta'),
                             style: ElevatedButton.styleFrom(
