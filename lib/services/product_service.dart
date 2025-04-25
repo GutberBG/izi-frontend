@@ -1,9 +1,10 @@
 import 'dart:convert';
 import '../models/product.dart';
+import '../models/pagination_result.dart'; // Tendrás que crear esta clase
 import 'api_service.dart';
 
 class ProductService {
-  static Future<List<Product>> fetchProducts({
+  static Future<PaginationResult<Product>> fetchProducts({
     int page = 1,
     int limit = 10,
     String? name,
@@ -40,7 +41,15 @@ class ProductService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List productsJson = data['products'];
-        return productsJson.map((json) => Product.fromJson(json)).toList();
+        final products = productsJson.map((json) => Product.fromJson(json)).toList();
+        
+        return PaginationResult<Product>(
+          products: products,
+          totalProducts: data['totalProducts'],
+          totalPages: data['totalPages'],
+          currentPage: data['currentPage'],
+          limit: data['limit'],
+        );
       } else {
         throw Exception('Error fetching products');
       }

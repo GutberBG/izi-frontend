@@ -14,15 +14,23 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProviderStateMixin {
-  int _currentPage = 0;
+  int _currentPage = 1; // Cambiado a 1 para alinearse con la API (empezando en 1, no en 0)
   int _rowsPerPage = 10;
-  int _sortColumnIndex = 0;
-  bool _sortAscending = true;
+  String _sortBy = 'createdAt';
+  String _sortOrder = 'desc';
   late AnimationController _animationController;
 
-  List<Product> _allProducts = [];
   List<Product> _displayedProducts = [];
+  int _totalProducts = 0;
+  int _totalPages = 0;
   bool _isLoading = true;
+
+  // Filtros
+  String? _nameFilter;
+  String? _categoryFilter;
+  String? _supplierFilter;
+  double? _minPriceFilter;
+  double? _maxPriceFilter;
 
   @override
   void initState() {
@@ -43,64 +51,52 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
 
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
-    final fetched = await ProductService.fetchProducts();
-    setState(() {
-      _allProducts = fetched;
-      _displayedProducts = List.from(_allProducts);
-      _isLoading = false;
-      _applySort();
-      _updateDisplayedProducts();
-    });
-    // Reiniciar animaciones cuando se cargan nuevos datos
-    _animationController.reset();
-    _animationController.forward();
-  }
-
-  void _sort<T>(Comparable<T> Function(Product p) getField, int columnIndex,
-      bool ascending) {
-    setState(() {
-      _sortColumnIndex = columnIndex;
-      _sortAscending = ascending;
-      _applySort();
-      _updateDisplayedProducts();
-    });
-  }
-
-  void _applySort() {
-    _allProducts.sort((a, b) {
-      final aValue = _getSortValue(a);
-      final bValue = _getSortValue(b);
-      return _sortAscending
-          ? Comparable.compare(aValue, bValue)
-          : Comparable.compare(bValue, aValue);
-    });
-  }
-
-  Comparable<dynamic> _getSortValue(Product product) {
-    switch (_sortColumnIndex) {
-      case 0:
-        return product.name;
-      case 1:
-        return product.description ?? '';
-      case 2:
-        return product.price;
-      case 3:
-        return product.stock;
-      case 4:
-        return product.category ?? '';
-      default:
-        return product.name;
+    
+    try {
+      final result = await ProductService.fetchProducts(
+        page: _currentPage,
+        limit: _rowsPerPage,
+        name: _nameFilter,
+        category: _categoryFilter,
+        supplier: _supplierFilter,
+        minPrice: _minPriceFilter,
+        maxPrice: _maxPriceFilter,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
+      );
+      
+      setState(() {
+        _displayedProducts = result.products;
+        _totalProducts = result.totalProducts;
+        _totalPages = result.totalPages;
+        _isLoading = false;
+      });
+      
+      // Reiniciar animaciones cuando se cargan nuevos datos
+      _animationController.reset();
+      _animationController.forward();
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Mostrar un mensaje de error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar productos: $error')),
+      );
     }
   }
 
-  void _updateDisplayedProducts() {
-    final startIndex = _currentPage * _rowsPerPage;
-    var endIndex = startIndex + _rowsPerPage;
-    if (endIndex > _allProducts.length) {
-      endIndex = _allProducts.length;
-    }
+  void _sort(String field, int columnIndex) {
     setState(() {
-      _displayedProducts = _allProducts.sublist(startIndex, endIndex);
+      if (_sortBy == field) {
+        // Si ya estamos ordenando por este campo, cambiamos la dirección
+        _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+      } else {
+        // Si es un nuevo campo, establecemos el campo y dirección por defecto
+        _sortBy = field;
+        _sortOrder = 'asc';
+      }
+      _loadProducts(); // Recarga los productos con el nuevo orden
     });
   }
 
@@ -160,10 +156,11 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
     }
   }
 
-  Widget _buildHeaderCell(String text, int columnIndex,
+  Widget _buildHeaderCell(String text, String field, int columnIndex,
       {bool numeric = false}) {
+    final isSorted = _sortBy == field;
     return InkWell(
-      onTap: () => _sort(_getSortValue, columnIndex, !_sortAscending),
+      onTap: () => _sort(field, columnIndex),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: Row(
@@ -178,7 +175,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                 fontSize: 14,
               ),
             ),
-            if (_sortColumnIndex == columnIndex)
+            if (isSorted)
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (Widget child, Animation<double> animation) {
@@ -194,13 +191,139 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                   );
                 },
                 child: Icon(
-                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                  _sortOrder == 'asc' ? Icons.arrow_upward : Icons.arrow_downward,
                   size: 16,
                   color: Colors.white,
-                  key: ValueKey<bool>(_sortAscending),
+                  key: ValueKey<bool>(_sortOrder == 'asc'),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Método para construir los filtros
+  Widget _buildFilters() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 600),
+        child: SlideAnimation(
+          horizontalOffset: -100.0,
+          child: FadeInAnimation(
+            child: Card(
+              elevation: 2,
+              child: ExpansionTile(
+                title: Text('Filtros', style: TextStyle(fontWeight: FontWeight.bold)),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Nombre',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                                onChanged: (value) {
+                                  _nameFilter = value.isEmpty ? null : value;
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Categoría',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                                onChanged: (value) {
+                                  _categoryFilter = value.isEmpty ? null : value;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Precio mínimo',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  _minPriceFilter = value.isEmpty ? null : double.tryParse(value);
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Precio máximo',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  _maxPriceFilter = value.isEmpty ? null : double.tryParse(value);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                // Restablecer filtros
+                                setState(() {
+                                  _nameFilter = null;
+                                  _categoryFilter = null;
+                                  _supplierFilter = null;
+                                  _minPriceFilter = null;
+                                  _maxPriceFilter = null;
+                                  _currentPage = 1;
+                                });
+                                _loadProducts();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[300],
+                              ),
+                              child: Text('Limpiar'),
+                            ),
+                            SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {
+                                _currentPage = 1; // Volver a la primera página al filtrar
+                                _loadProducts();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                              ),
+                              child: Text('Aplicar filtros'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -213,7 +336,7 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
       appBar: AppBar(
         title: const Text('Productos'),
         backgroundColor: Colors.blue.shade700,
-        //color texto blanco
+        // color texto blanco
         titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 24,
@@ -291,7 +414,12 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                             ),
                           ),
                 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 12),
+                
+                          // Filtros
+                          _buildFilters(),
+                
+                          const SizedBox(height: 16),
                           // Encabezado de la tabla con animación
                           AnimationConfiguration.synchronized(
                             duration: const Duration(milliseconds: 600),
@@ -306,23 +434,23 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                                     children: [
                                       Expanded(
                                         flex: 2,
-                                        child: _buildHeaderCell('Nombre', 0),
+                                        child: _buildHeaderCell('Nombre', 'name', 0),
                                       ),
                                       Expanded(
                                         flex: 2,
-                                        child: _buildHeaderCell('Descripción', 1),
+                                        child: _buildHeaderCell('Descripción', 'description', 1),
                                       ),
                                       Expanded(
                                         flex: 1,
-                                        child: _buildHeaderCell('Precio', 2, numeric: true),
+                                        child: _buildHeaderCell('Precio', 'price', 2, numeric: true),
                                       ),
                                       Expanded(
                                         flex: 1,
-                                        child: _buildHeaderCell('Stock', 3, numeric: true),
+                                        child: _buildHeaderCell('Stock', 'stock', 3, numeric: true),
                                       ),
                                       Expanded(
                                         flex: 1,
-                                        child: _buildHeaderCell('Categoría', 4),
+                                        child: _buildHeaderCell('Categoría', 'category', 4),
                                       ),
                                       Expanded(
                                         flex: 1,
@@ -534,27 +662,26 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                                     children: [
                                       IconButton(
                                         icon: const Icon(Icons.chevron_left),
-                                        onPressed: _currentPage > 0
+                                        onPressed: _currentPage > 1
                                             ? () {
                                                 setState(() {
                                                   _currentPage--;
-                                                  _updateDisplayedProducts();
+                                                  _loadProducts();
                                                 });
                                               }
                                             : null,
                                       ),
                                       Text(
-                                        'Página ${_currentPage + 1} de ${(_allProducts.length / _rowsPerPage).ceil()}',
+                                        'Página $_currentPage de $_totalPages',
                                         style: const TextStyle(fontWeight: FontWeight.w500),
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.chevron_right),
-                                        onPressed: (_currentPage + 1) * _rowsPerPage <
-                                                _allProducts.length
+                                        onPressed: _currentPage < _totalPages
                                             ? () {
                                                 setState(() {
                                                   _currentPage++;
-                                                  _updateDisplayedProducts();
+                                                  _loadProducts();
                                                 });
                                               }
                                             : null,
@@ -575,8 +702,8 @@ class _ProductsScreenState extends State<ProductsScreen> with SingleTickerProvid
                                         onChanged: (value) {
                                           setState(() {
                                             _rowsPerPage = value!;
-                                            _currentPage = 0;
-                                            _updateDisplayedProducts();
+                                            _currentPage = 1; // Volver a la primera página
+                                            _loadProducts();
                                           });
                                         },
                                       ),

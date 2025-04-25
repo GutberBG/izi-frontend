@@ -27,19 +27,19 @@ class _CreateSaleModalState extends State<CreateSaleModal> {
   }
 
   Future<void> _loadProducts() async {
-    try {
-      final products = await ProductService.fetchProducts();
-      setState(() {
-        _availableProducts = products;
-        _isLoadingProducts = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingProducts = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cargando productos: $e')),
-      );
-    }
+  try {
+    final result = await ProductService.fetchProducts();
+    setState(() {
+      _availableProducts = result.products;
+      _isLoadingProducts = false;
+    });
+  } catch (e) {
+    setState(() => _isLoadingProducts = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error cargando productos: $e')),
+    );
   }
+}
 
   double get _totalAmount {
     return _selectedItems.fold(0, (sum, item) {
@@ -74,9 +74,8 @@ class _CreateSaleModalState extends State<CreateSaleModal> {
 
         if (mounted) Navigator.of(context).pop(true);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al registrar venta: $e')),
-        );
+        print('Error guardando la venta: $e');
+        if (mounted) Navigator.of(context).pop(true);
       }
     } else if (_selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

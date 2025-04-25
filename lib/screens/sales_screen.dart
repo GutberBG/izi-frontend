@@ -46,7 +46,7 @@ class _SalesScreenState extends State<SalesScreen>
       setState(() => _isLoading = true);
       final fetched = await SalesService.fetchSales();
       setState(() {
-        _allSales = fetched;
+        _allSales = fetched.products; // Assuming 'items' is the property containing the list of sales
         _applySort();
         _updateDisplayedSales();
         _isLoading = false;

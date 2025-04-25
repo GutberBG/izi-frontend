@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:izi_frontend/models/pagination_result.dart';
+
 import '../models/sale.dart';
 import '../models/sale_item.dart';
 import 'api_service.dart';
 
 class SalesService {
-  static Future<List<Sale>> fetchSales({
+  static Future<PaginationResult<Sale>> fetchSales({
     int page = 1,
     int limit = 10,
     String? user,
@@ -16,6 +18,7 @@ class SalesService {
     String sortOrder = 'desc',
   }) async {
     try {
+      // Crear un mapa con los parámetros de la consulta
       Map<String, String> queryParams = {
         'page': page.toString(),
         'limit': limit.toString(),
@@ -23,27 +26,46 @@ class SalesService {
         'sortOrder': sortOrder,
       };
 
-      if (user != null) queryParams['user'] = user;
+      // Añadir los filtros si se proporcionan
+      if (user != null && user.isNotEmpty) queryParams['user'] = user;
       if (minTotal != null) queryParams['minTotal'] = minTotal.toString();
       if (maxTotal != null) queryParams['maxTotal'] = maxTotal.toString();
-      if (startDate != null) queryParams['startDate'] = startDate;
-      if (endDate != null) queryParams['endDate'] = endDate;
+      if (startDate != null && startDate.isNotEmpty)
+        queryParams['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty)
+        queryParams['endDate'] = endDate;
 
       final response = await ApiService.get('/sales', queryParams: queryParams);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List salesJson = data['sales'];
-        return salesJson.map((json) => Sale.fromJson(json)).toList();
+
+        // Verificar que 'sales' exista y sea una lista
+        if (data != null && data['sales'] is List) {
+          final List salesJson = data['sales'];
+          final sales = salesJson.map((json) => Sale.fromJson(json)).toList();
+
+          return PaginationResult<Sale>(
+            products: sales,
+            totalProducts: data[
+                'totalSales'], // Suponiendo que se llamen igual en la respuesta
+            totalPages: data['totalPages'],
+            currentPage: data['currentPage'],
+            limit: data['limit'],
+          );
+        } else {
+          throw Exception('No se encontraron ventas o formato inválido');
+        }
       } else {
-        throw Exception('Error fetching sales');
+        throw Exception('Error al obtener ventas: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error cargando ventas: $e');
       rethrow;
     }
   }
 
-  static Future<Sale> createSale({
+  static Future<Sale?> createSale({
     required List<SaleItem> items,
     String? note,
     String? user,
@@ -56,7 +78,7 @@ class SalesService {
       });
 
       if (response.statusCode == 201) {
-        return Sale.fromJson(jsonDecode(response.body));
+        return null;
       } else {
         throw Exception('Error creating sale');
       }
@@ -79,7 +101,8 @@ class SalesService {
     }
   }
 
-  static Future<Sale> updateSale(String id, Map<String, dynamic> updates) async {
+  static Future<Sale> updateSale(
+      String id, Map<String, dynamic> updates) async {
     try {
       final response = await ApiService.put('/sales/$id', updates);
 
