@@ -4,7 +4,7 @@ import 'sales_screen.dart';
 import 'reports_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required Map<String, String> user});
 
   @override
   Widget build(BuildContext context) {

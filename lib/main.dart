@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:izi_frontend/screens/home_screen.dart';
+import 'package:izi_frontend/screens/login_screen.dart';
 import 'package:izi_frontend/screens/products_screen.dart';
 
 void main() async {
@@ -27,7 +28,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomeScreen(),
+        '/': (context) => const LoginScreen(),
         '/products': (context) => const ProductsScreen(),
       },
     );
