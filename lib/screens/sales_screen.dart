@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:izi_frontend/screens/reports_screen.dart';
 import '../models/sale.dart';
 import '../services/sales_service.dart';
 import '../widgets/create_sale_modal.dart';
@@ -103,6 +104,14 @@ class _SalesScreenState extends State<SalesScreen> {
     ).then((_) => _loadSales());
   }
 
+  void _navigateToReport(BuildContext context) {
+    print("sadsa");
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ReportsScreen()),
+    );
+  }
+
   Widget _buildHeaderCell(String text, int columnIndex,
       {bool numeric = false}) {
     return InkWell(
@@ -146,7 +155,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         Expanded(
                           flex: 1,
                           child: ElevatedButton.icon(
-                            onPressed: () => _navigateToCreateSale,
+                            onPressed: () => _navigateToReport(context),
                             icon: const Icon(Icons.assignment_outlined),
                             label: const Text('Ver Reportes'),
                             style: ElevatedButton.styleFrom(
