@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'products_screen.dart';
 import 'sales_screen.dart';
 import 'reports_screen.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required Map<String, String> user});
@@ -9,38 +11,57 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.blue.shade400,
       appBar: AppBar(
         title: const Text('Gestión Comercial'),
         centerTitle: true,
+        backgroundColor: Colors.blue.shade700,
+        //color texto blanco
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildNavigationCard(
-              context,
-              title: 'Productos',
-              icon: Icons.inventory_2,
-              color: Colors.blue.shade400,
-              destination: const ProductsScreen(),
+        child: AnimationLimiter(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: AnimationConfiguration.toStaggeredList(
+              duration: const Duration(milliseconds: 600),
+              childAnimationBuilder: (widget) => SlideAnimation(
+                verticalOffset: 50.0,
+                child: FadeInAnimation(
+                  child: widget,
+                ),
+              ),
+              children: [
+                _buildNavigationCard(
+                  context,
+                  title: 'Productos',
+                  icon: Icons.inventory_2,
+                  color: Colors.blue.shade400,
+                  destination: const ProductsScreen(),
+                ),
+                const SizedBox(height: 20),
+                _buildNavigationCard(
+                  context,
+                  title: 'Ventas',
+                  icon: Icons.shopping_cart,
+                  color: Colors.green.shade400,
+                  destination: const SalesScreen(),
+                ),
+                const SizedBox(height: 20),
+                _buildNavigationCard(
+                  context,
+                  title: 'Reportes',
+                  icon: Icons.analytics,
+                  color: Colors.orange.shade400,
+                  destination: const ReportsScreen(),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            _buildNavigationCard(
-              context,
-              title: 'Ventas',
-              icon: Icons.shopping_cart,
-              color: Colors.green.shade400,
-              destination: const SalesScreen(),
-            ),
-            const SizedBox(height: 20),
-            _buildNavigationCard(
-              context,
-              title: 'Reportes',
-              icon: Icons.analytics,
-              color: Colors.orange.shade400,
-              destination: const ReportsScreen(),
-            ),
-          ],
+          ),
         ),
       ),
     );

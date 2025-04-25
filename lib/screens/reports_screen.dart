@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../services/report_service.dart';
 import '../models/report.dart';
 
@@ -11,7 +12,7 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProviderStateMixin {
   DateTime _fechaInicio = DateTime.now().subtract(const Duration(days: 7));
   DateTime _fechaFin = DateTime.now();
   int _currentChartIndex = 0; // 0: Barras, 1: Líneas, 2: Pastel
@@ -25,11 +26,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<String> _diasPeriodo = [];
   List<String> _categorias = [];
   List<double> _ventasPorProducto = [];
+  
+  // Animation controllers
+  late AnimationController _chartAnimationController;
+  late Animation<double> _chartAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadReport();
+    
+    // Initialize animation controller
+    _chartAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    
+    _chartAnimation = CurvedAnimation(
+      parent: _chartAnimationController,
+      curve: Curves.easeInOut,
+    );
+  }
+  
+  @override
+  void dispose() {
+    _chartAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadReport() async {
@@ -54,6 +76,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _processReportData(report);
         _isLoading = false;
       });
+      
+      // Start animation when data is loaded
+      _chartAnimationController.reset();
+      _chartAnimationController.forward();
     } catch (e) {
       setState(() {
         _error = 'Error al cargar el reporte: $e';
@@ -211,169 +237,256 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.blue.shade400,
       appBar: AppBar(
         title: const Text('Dashboard de Reportes'),
+        backgroundColor: Colors.blue.shade700,
+        //color texto blanco
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadReport,
+          AnimationConfiguration.synchronized(
+            duration: const Duration(milliseconds: 500),
+            child: SlideAnimation(
+              horizontalOffset: 50.0,
+              child: FadeInAnimation(
+                child: IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadReport,
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: AnimationConfiguration.synchronized(
+                duration: const Duration(milliseconds: 600),
+                child: ScaleAnimation(
+                  scale: 0.5,
+                  child: FadeInAnimation(
+                    child: const CircularProgressIndicator(),
+                  ),
+                ),
+              ),
+            )
           : _error != null
               ? Center(
-                  child: Text(_error!, style: TextStyle(color: Colors.red)))
-              : SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Selectores de fecha
-                        Row(
+                  child: AnimationConfiguration.synchronized(
+                    duration: const Duration(milliseconds: 600),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: Text(_error!, style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                  ),
+                )
+              : AnimationLimiter(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: AnimationConfiguration.toStaggeredList(
+                          duration: const Duration(milliseconds: 375),
+                          childAnimationBuilder: (widget) => SlideAnimation(
+                            horizontalOffset: 50.0,
+                            child: FadeInAnimation(
+                              child: widget,
+                            ),
+                          ),
                           children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => _selectFechaInicio(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey),
-                                    borderRadius: BorderRadius.circular(8),
+                            // Selectores de fecha
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _selectFechaInicio(context),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: const Color.fromARGB(255, 255, 255, 255)),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('Desde:'),
+                                          Text(DateFormat('dd/MM/yyyy')
+                                              .format(_fechaInicio)),
+                                          const Icon(Icons.calendar_today,
+                                              size: 18),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Desde:'),
-                                      Text(DateFormat('dd/MM/yyyy')
-                                          .format(_fechaInicio)),
-                                      const Icon(Icons.calendar_today,
-                                          size: 18),
-                                    ],
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _selectFechaFin(context),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.white),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('Hasta:'),
+                                          Text(DateFormat('dd/MM/yyyy')
+                                              .format(_fechaFin)),
+                                          const Icon(Icons.calendar_today,
+                                              size: 18),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Selector de tipo de gráfico
+                            SizedBox(
+                              height: 50,
+                              child: AnimationLimiter(
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: List.generate(
+                                    3,
+                                    (index) => AnimationConfiguration.staggeredList(
+                                      position: index,
+                                      duration: const Duration(milliseconds: 500),
+                                      child: SlideAnimation(
+                                        horizontalOffset: 50.0,
+                                        child: FadeInAnimation(
+                                          child: _buildChartTypeButton(
+                                            index == 0 ? 'Barras' : index == 1 ? 'Líneas' : 'Pastel',
+                                            index,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => _selectFechaFin(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Hasta:'),
-                                      Text(DateFormat('dd/MM/yyyy')
-                                          .format(_fechaFin)),
-                                      const Icon(Icons.calendar_today,
-                                          size: 18),
-                                    ],
+                            const SizedBox(height: 20),
+
+                            // Gráfico seleccionado
+                            AnimationConfiguration.synchronized(
+                              duration: const Duration(milliseconds: 800),
+                              child: SlideAnimation(
+                                verticalOffset: 50.0,
+                                child: FadeInAnimation(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.grey.withOpacity(0.2),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _currentChartIndex == 0
+                                              ? 'Ventas por día'
+                                              : _currentChartIndex == 1
+                                                  ? 'Tendencia de ventas'
+                                                  : 'Ventas por producto',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          height: 300,
+                                          child: AnimatedBuilder(
+                                            animation: _chartAnimation,
+                                            builder: (context, child) {
+                                              return Opacity(
+                                                opacity: _chartAnimation.value,
+                                                child: Transform.scale(
+                                                  scale: 0.8 + (0.2 * _chartAnimation.value),
+                                                  child: _buildCurrentChart(),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
+                            const SizedBox(height: 20),
 
-                        // Selector de tipo de gráfico
-                        SizedBox(
-                          height: 50,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _buildChartTypeButton('Barras', 0),
-                              _buildChartTypeButton('Líneas', 1),
-                              _buildChartTypeButton('Pastel', 2),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Gráfico seleccionado
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.2),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _currentChartIndex == 0
-                                    ? 'Ventas por día'
-                                    : _currentChartIndex == 1
-                                        ? 'Tendencia de ventas'
-                                        : 'Ventas por producto',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                            // Resumen numérico
+                            const Text(
+                              'Resumen',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              childAspectRatio: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              children: AnimationConfiguration.toStaggeredList(
+                                duration: const Duration(milliseconds: 600),
+                                childAnimationBuilder: (widget) => SlideAnimation(
+                                  horizontalOffset: 50.0,
+                                  child: FadeInAnimation(
+                                    child: widget,
+                                  ),
                                 ),
+                                children: [
+                                  _buildSummaryCard(
+                                      'Ventas totales',
+                                      '\$${NumberFormat("#,##0.00").format(_currentReport?.totalRevenue ?? 0)}',
+                                      const Color.fromARGB(255, 0, 85, 155)),
+                                  _buildSummaryCard(
+                                      'Órdenes',
+                                      '${_currentReport?.totalSales ?? 0}',
+                                      const Color.fromARGB(255, 0, 121, 4)),
+                                  _buildSummaryCard(
+                                      'Ticket promedio',
+                                      _currentReport != null &&
+                                              _currentReport!.totalSales > 0
+                                          ? '\$${NumberFormat("#,##0.00").format(_currentReport!.totalRevenue / _currentReport!.totalSales)}'
+                                          : '\$0.00',
+                                      const Color.fromARGB(255, 124, 75, 0)),
+                                  _buildSummaryCard(
+                                      'Productos vendidos',
+                                      '${_currentReport?.productsSold.length ?? 0}',
+                                      Colors.purple),
+                                ],
                               ),
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                height: 300,
-                                child: _buildCurrentChart(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Resumen numérico
-                        const Text(
-                          'Resumen',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          childAspectRatio: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          children: [
-                            _buildSummaryCard(
-                                'Ventas totales',
-                                '\$${NumberFormat("#,##0.00").format(_currentReport?.totalRevenue ?? 0)}',
-                                Colors.blue),
-                            _buildSummaryCard(
-                                'Órdenes',
-                                '${_currentReport?.totalSales ?? 0}',
-                                const Color.fromARGB(255, 0, 121, 4)),
-                            _buildSummaryCard(
-                                'Ticket promedio',
-                                _currentReport != null &&
-                                        _currentReport!.totalSales > 0
-                                    ? '\$${NumberFormat("#,##0.00").format(_currentReport!.totalRevenue / _currentReport!.totalSales)}'
-                                    : '\$0.00',
-                                const Color.fromARGB(255, 124, 75, 0)),
-                            _buildSummaryCard(
-                                'Productos vendidos',
-                                '${_currentReport?.productsSold.length ?? 0}',
-                                Colors.purple),
+                            ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -387,7 +500,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         label: Text(label),
         selected: _currentChartIndex == index,
         onSelected: (selected) {
-          setState(() => _currentChartIndex = index);
+          setState(() {
+            _currentChartIndex = index;
+            _chartAnimationController.reset();
+            _chartAnimationController.forward();
+          });
         },
       ),
     );
@@ -413,7 +530,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           x: index,
           barRods: [
             BarChartRodData(
-              toY: _ventasPorDia[index],
+              toY: _ventasPorDia[index] * _chartAnimation.value,
               color: _getColorForIndex(index),
               borderRadius: BorderRadius.circular(4),
               width: 20,
@@ -456,7 +573,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       lineBarsData: [
         LineChartBarData(
           spots: List.generate(_ventasPorDia.length, (index) {
-            return FlSpot(index.toDouble(), _ventasPorDia[index]);
+            return FlSpot(index.toDouble(), _ventasPorDia[index] * _chartAnimation.value);
           }),
           isCurved: true,
           color: Colors.blue,
@@ -509,7 +626,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: _getColorForIndex(index),
           value: _ventasPorProducto[index],
           title: '${percentage.toStringAsFixed(1)}%',
-          radius: 75,
+          radius: 75 * _chartAnimation.value,
           titleStyle: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
@@ -522,7 +639,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildSummaryCard(String title, String value, Color color) {
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withOpacity(0.9),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -531,7 +648,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Text(
               title,
               style: TextStyle(
-                color: color,
+                color: Colors.white,
                 fontSize: 14,
               ),
             ),
@@ -539,7 +656,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Text(
               value,
               style: TextStyle(
-                color: color,
+                color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
