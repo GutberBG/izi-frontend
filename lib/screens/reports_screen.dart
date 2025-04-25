@@ -14,7 +14,7 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProviderStateMixin {
   DateTime _fechaInicio = DateTime.now().subtract(const Duration(days: 7));
-  DateTime _fechaFin = DateTime.now();
+  DateTime _fechaFin = DateTime.now().add(const Duration(days: 2));
   int _currentChartIndex = 0; // 0: Barras, 1: Líneas, 2: Pastel
 
   Report? _currentReport;
