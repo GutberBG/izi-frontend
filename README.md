@@ -1,16 +1,48 @@
-# izi_frontend
+# README - Aplicación Flutter de Gestión Comercial
 
-A new Flutter project.
+## Requisitos previos
 
-## Getting Started
+-   Flutter SDK (versión 3.0.0 o superior)
+    
+-   Dart (versión 2.17.0 o superior)
+    
+-   Dispositivo o emulador para pruebas
+    
 
-This project is a starting point for a Flutter application.
+## Configuración inicial
 
-A few resources to get you started if this is your first Flutter project:
+1.  **Clonar el repositorio**:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+    ```
+    git clone https://github.com/GutberBG/izi-frontend
+    cd izi-frontend```
+2.  **Instalar dependencias**:
+```    flutter pub get```
+    
+3.  **Configurar variables de entorno**:
+    
+    Crea un archivo  `.env`  en la raíz del proyecto (al mismo nivel que  `pubspec.yaml`) basado en el archivo  `.env.sample`:
+    
+	````    cp .env.sample .env````
+    
+    Luego edita el archivo  `.env`  con tus credenciales y configuraciones.
+    
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+
+
+## Ejecución de la aplicación
+
+1.  **Para ejecutar en modo desarrollo**:
+    ``
+    flutter run``
+    
+2.  **Para construir la aplicación**  
+        
+    -   Web:
+        ``
+        flutter build web --release``
+        
+
+## Autor
+
+Desarrollado por Gutber Blanco.
