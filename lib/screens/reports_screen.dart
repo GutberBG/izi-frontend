@@ -213,7 +213,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
       context: context,
       initialDate: _fechaInicio,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate:  DateTime.now().add(const Duration(days: 30)),
     );
     if (picked != null && picked != _fechaInicio) {
       setState(() => _fechaInicio = picked);
@@ -226,7 +226,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
       context: context,
       initialDate: _fechaFin,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
     );
     if (picked != null && picked != _fechaFin) {
       setState(() => _fechaFin = picked);
